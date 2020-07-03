@@ -25,7 +25,7 @@ private:
 
     unsigned int frame_vbo;
     unsigned int frame_vao;
-    ShaderProgram frame_shader;
+    Shader frame_shader;
 };
 
 #endif

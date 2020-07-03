@@ -7,20 +7,20 @@
 #include <glm/glm.hpp>
 
 
-struct Shader {
+struct ShaderStage {
     GLenum type;
     const char* path;
 };
 
 
-class ShaderProgram : public QObject, protected QOpenGLFunctions_4_5_Core {
+class Shader : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT;
 
 public:
-    ShaderProgram(QObject* parent=nullptr);
-    ~ShaderProgram();
+    Shader(QObject* parent=nullptr);
+    ~Shader();
 
-    void load_shaders(Shader shaders[], unsigned int nr_shaders);
+    void load_shaders(ShaderStage shaders[], unsigned int nr_shaders);
     bool validate();
 
     void use();

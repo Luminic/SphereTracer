@@ -17,17 +17,17 @@ QString text_content(const char* path) {
 }
 
 
-ShaderProgram::ShaderProgram(QObject* parent) : QObject(parent) {}
+Shader::Shader(QObject* parent) : QObject(parent) {}
 
 
-ShaderProgram::~ShaderProgram() {
+Shader::~Shader() {
     if (id != 0) {
         glDeleteProgram(id);
     }
 }
 
 
-void ShaderProgram::load_shaders(Shader shaders[], unsigned int nr_shaders) {
+void Shader::load_shaders(ShaderStage shaders[], unsigned int nr_shaders) {
     initializeOpenGLFunctions();
 
     id = glCreateProgram();
@@ -88,7 +88,7 @@ void ShaderProgram::load_shaders(Shader shaders[], unsigned int nr_shaders) {
 }
 
 
-bool ShaderProgram::validate() {
+bool Shader::validate() {
     glValidateProgram(id);
 
     int valid;
@@ -104,36 +104,36 @@ bool ShaderProgram::validate() {
 }
 
 
-void ShaderProgram::use() {
+void Shader::use() {
     glUseProgram(id);
 }
 
 
-void ShaderProgram::set_bool(const char* name, bool value) {
+void Shader::set_bool(const char* name, bool value) {
     unsigned int loc = glGetUniformLocation(id, name);
     glUniform1i(loc, (int)value);
 }
 
 
-void ShaderProgram::set_int(const char* name, int value) {
+void Shader::set_int(const char* name, int value) {
     unsigned int loc = glGetUniformLocation(id, name);
     glUniform1i(loc, value);
 }
 
 
-void ShaderProgram::set_float(const char* name, float value) {
+void Shader::set_float(const char* name, float value) {
     unsigned int loc = glGetUniformLocation(id, name);
     glUniform1f(loc, value);
 }
 
 
-void ShaderProgram::set_vec3(const char* name, const glm::vec3 &value) {
+void Shader::set_vec3(const char* name, const glm::vec3 &value) {
     unsigned int loc = glGetUniformLocation(id, name);
     glUniform3fv(loc, 1, &value[0]);
 }
 
 
-void ShaderProgram::set_mat4(const char* name, const glm::mat4 &value) {
+void Shader::set_mat4(const char* name, const glm::mat4 &value) {
     unsigned int loc = glGetUniformLocation(id, name);
     glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(value));
 }

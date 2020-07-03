@@ -77,9 +77,9 @@ void OpenGLWidget::initializeGL() {
 
     // Setup the frame shader to draw the render to the screen
 
-    Shader shaders[] = {
-        Shader{GL_VERTEX_SHADER, "rendering/shaders/framebuffer_vs.glsl"},
-        Shader{GL_FRAGMENT_SHADER, "rendering/shaders/framebuffer_fs.glsl"}
+    ShaderStage shaders[] = {
+        ShaderStage{GL_VERTEX_SHADER, "rendering/shaders/framebuffer_vs.glsl"},
+        ShaderStage{GL_FRAGMENT_SHADER, "rendering/shaders/framebuffer_fs.glsl"}
     };
 
     frame_shader.load_shaders(shaders, 2);
