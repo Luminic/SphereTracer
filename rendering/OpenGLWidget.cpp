@@ -76,7 +76,6 @@ void OpenGLWidget::initializeGL() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // Setup the frame shader to draw the render to the screen
-
     ShaderStage shaders[] = {
         ShaderStage{GL_VERTEX_SHADER, "rendering/shaders/framebuffer_vs.glsl"},
         ShaderStage{GL_FRAGMENT_SHADER, "rendering/shaders/framebuffer_fs.glsl"}
@@ -84,6 +83,17 @@ void OpenGLWidget::initializeGL() {
 
     frame_shader.load_shaders(shaders, 2);
     frame_shader.validate();
+
+    // Setup the render shader
+    ShaderStage comp_shaders[] = {
+        ShaderStage{GL_COMPUTE_SHADER, "rendering/shaders/raytrace.glsl"}
+    };
+
+    render_shader.load_shaders(comp_shaders, 1);
+    render_shader.validate();
+
+    // Setup the texture
+    tex.load("textures/awesomeface.png");
 }
 
 void OpenGLWidget::resizeGL(int w, int h) {
@@ -93,6 +103,9 @@ void OpenGLWidget::resizeGL(int w, int h) {
 void OpenGLWidget::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT);
     frame_shader.use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex.get_id());
+    frame_shader.set_int("render", 0);
     glBindVertexArray(frame_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }

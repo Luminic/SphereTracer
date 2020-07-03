@@ -6,6 +6,7 @@
 
 #include "Camera.hpp"
 #include "Shader.hpp"
+#include "Texture.hpp"
 
 class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT;
@@ -26,6 +27,10 @@ private:
     unsigned int frame_vbo;
     unsigned int frame_vao;
     Shader frame_shader;
+
+    Shader render_shader;
+
+    Texture tex;
 };
 
 #endif
