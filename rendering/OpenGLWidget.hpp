@@ -24,13 +24,12 @@ public:
 private:
     Camera camera;
 
+    Shader render_shader;
+    Texture render_result;
+
     unsigned int frame_vbo;
     unsigned int frame_vao;
     Shader frame_shader;
-
-    Shader render_shader;
-
-    Texture tex;
 };
 
 #endif

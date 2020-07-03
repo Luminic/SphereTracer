@@ -16,11 +16,14 @@ public:
     void load(QImage img);
     void create(unsigned int width, unsigned int height);
 
-    void set_params(); // TODO: add sampler options
+    // Warning: This WILL clear the image
+    void resize(unsigned int width, unsigned int height);
 
     unsigned int get_id();
 
 private:
+    void set_params(); // TODO: add sampler options and make public
+
     unsigned int id;
 };
 

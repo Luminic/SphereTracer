@@ -21,5 +21,5 @@ void main() {
     if (pix.x >= size.x || pix.y >= size.y) {
         return;
     }
-    imageStore(framebuffer, pix, vec4(0.0f,0.0f,1.0f,0.0f));
+    imageStore(framebuffer, pix, vec4(0.0f,0.0f,1.0f,1.0f));
 }

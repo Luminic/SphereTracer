@@ -8,7 +8,7 @@ Texture::Texture(QObject* parent) : QObject(parent) {}
 Texture::~Texture() {}
 
 void Texture::load(const char* path) {
-    QImage img = QImage(path).convertToFormat(QImage::Format_RGB888).mirrored(false, true);
+    QImage img = QImage(path).convertToFormat(QImage::Format_RGBA8888).mirrored(false, true);
     load(img);
 }
 
@@ -21,7 +21,7 @@ void Texture::load(QImage img) {
     glBindTexture(GL_TEXTURE_2D, id);
 
     set_params();
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.width(), img.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, img.bits());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, img.width(), img.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, img.bits());
 }
 
 void Texture::create(unsigned int width, unsigned int height) {
@@ -33,7 +33,7 @@ void Texture::create(unsigned int width, unsigned int height) {
     glBindTexture(GL_TEXTURE_2D, id);
 
     set_params();
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)0);
 }
 
 void Texture::set_params() {
@@ -45,6 +45,12 @@ void Texture::set_params() {
 
     glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+}
+
+void Texture::resize(unsigned int width, unsigned int height) {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (void*)0);
 }
 
 unsigned int Texture::get_id() {
