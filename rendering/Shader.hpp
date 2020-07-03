@@ -23,6 +23,8 @@ public:
     void load_shaders(ShaderStage shaders[], unsigned int nr_shaders);
     bool validate();
 
+    unsigned int get_id();
+
     void use();
     void set_bool(const char* name, bool value);
     void set_int(const char* name, int value);

@@ -104,6 +104,11 @@ bool Shader::validate() {
 }
 
 
+unsigned int Shader::get_id() {
+    return id;
+}
+
+
 void Shader::use() {
     glUseProgram(id);
 }

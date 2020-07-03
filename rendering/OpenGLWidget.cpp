@@ -4,9 +4,7 @@
 #include <QOpenGLDebugLogger>
 
 
-
 uint32_t round_up_to_pow_2(uint32_t x) {
-
     /*
     In C++20 we can use:
         #include <bit>
@@ -104,6 +102,7 @@ void OpenGLWidget::initializeGL() {
     render_shader.load_shaders(comp_shaders, 1);
     render_shader.validate();
 
+    glGetProgramiv(render_shader.get_id(), GL_COMPUTE_WORK_GROUP_SIZE, work_group_size);
     render_result.create(width(), height());
 
     // Setup the frame shader to draw the render to the screen
@@ -136,7 +135,7 @@ void OpenGLWidget::paintGL() {
 
     unsigned int worksize_x = round_up_to_pow_2(width());
     unsigned int worksize_y = round_up_to_pow_2(height());
-    glDispatchCompute(worksize_x/8, worksize_y/8, 1);
+    glDispatchCompute(worksize_x/work_group_size[0], worksize_y/work_group_size[1], 1);
 
     // Clean up & make sure the shader has finished writing to the image
     glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);

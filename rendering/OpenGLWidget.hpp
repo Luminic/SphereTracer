@@ -25,6 +25,7 @@ private:
     Camera camera;
 
     Shader render_shader;
+    int work_group_size[3];
     Texture render_result;
 
     unsigned int frame_vbo;
