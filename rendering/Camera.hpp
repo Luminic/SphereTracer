@@ -7,8 +7,8 @@
 
 struct CornerRays {
     glm::vec3 r00;
-    glm::vec3 r01;
     glm::vec3 r10;
+    glm::vec3 r01;
     glm::vec3 r11;
 };
 

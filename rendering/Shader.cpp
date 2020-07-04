@@ -21,9 +21,7 @@ Shader::Shader(QObject* parent) : QObject(parent) {}
 
 
 Shader::~Shader() {
-    if (id != 0) {
-        glDeleteProgram(id);
-    }
+    glDeleteProgram(id);
 }
 
 

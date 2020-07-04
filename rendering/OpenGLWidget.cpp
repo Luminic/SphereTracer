@@ -68,6 +68,7 @@ void OpenGLWidget::initializeGL() {
     glDisable(GL_DEPTH_TEST); // OpenGL's default depth testing isn't useful when using compute shaders for raytracing
     glClearColor(0.0, 0.0, 0.0, 1.0);
 
+    camera.position = glm::vec3(0.0f,0.0f,5.0f);
 
     // Create the frame
     float vertices[] = {
@@ -124,12 +125,15 @@ void OpenGLWidget::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Render
+    camera.update_view_matrix();
+    CornerRays eye_rays = camera.get_corner_rays();
+    
     render_shader.use();
-    render_shader.set_vec3("eye", glm::vec3(0.0f));
-    render_shader.set_vec3("ray00", glm::vec3(0.0f));
-    render_shader.set_vec3("ray10", glm::vec3(0.0f));
-    render_shader.set_vec3("ray01", glm::vec3(0.0f));
-    render_shader.set_vec3("ray11", glm::vec3(0.0f));
+    render_shader.set_vec3("eye", camera.position);
+    render_shader.set_vec3("ray00", eye_rays.r00);
+    render_shader.set_vec3("ray10", eye_rays.r10);
+    render_shader.set_vec3("ray01", eye_rays.r01);
+    render_shader.set_vec3("ray11", eye_rays.r11);
 
     glBindImageTexture(0, render_result.get_id(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 

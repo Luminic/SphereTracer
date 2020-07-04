@@ -21,7 +21,7 @@ public:
     void set_camera(Camera* camera);
 
     void mouse_movement(float dx, float dy);
-    void keyboard_input(std::unordered_set<int>* keys_pressed);
+    void keyboard_input(const std::unordered_set<int>& keys_pressed);
 
 private:
     Camera* camera;
