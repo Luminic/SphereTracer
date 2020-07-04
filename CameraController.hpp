@@ -4,10 +4,33 @@
 #include <unordered_set>
 
 #include <QObject>
+#include <QKeyEvent>
 
 #include <glm/glm.hpp>
 
 #include "rendering/Camera.hpp"
+
+
+struct Movement {
+    bool front;
+    bool back;
+
+    bool left;
+    bool right;
+
+    bool up;
+    bool down;
+
+    void reset() {
+        front = false;
+        back = false;
+        left = false;
+        right = false;
+        up = false;
+        down = false;
+    }
+};
+
 
 class CameraController : public QObject {
     Q_OBJECT;
@@ -20,14 +43,21 @@ public:
 
     void set_camera(Camera* camera);
 
-    void mouse_movement(float dx, float dy);
-    void keyboard_input(const std::unordered_set<int>& keys_pressed);
+    void main_loop();
+
+    void mouse_moved(float dx, float dy);
+    void key_event(QKeyEvent* key);
 
 private:
+    void init();
+
     Camera* camera;
 
     float mouse_sensitivity;
     float speed;
+
+    float mouse_movement[2];
+    Movement movement;
 };
 
 #endif

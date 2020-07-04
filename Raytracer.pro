@@ -18,9 +18,9 @@ INCLUDEPATH += .
 DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 # Input
-HEADERS += MainWindow.hpp CameraController.hpp \
+HEADERS += MainWindow.hpp Viewport.hpp CameraController.hpp \
 			rendering/OpenGLWidget.hpp rendering/Camera.hpp rendering/Shader.hpp rendering/Texture.hpp
 			
 
-SOURCES += main.cpp MainWindow.cpp CameraController.cpp \
+SOURCES += main.cpp MainWindow.cpp Viewport.cpp CameraController.cpp \
 			rendering/OpenGLWidget.cpp rendering/Camera.cpp rendering/Shader.cpp rendering/Texture.cpp
