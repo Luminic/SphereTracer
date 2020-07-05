@@ -1,8 +1,6 @@
 #ifndef CAMERA_CONTROLLER_HPP
 #define CAMERA_CONTROLLER_HPP
 
-#include <unordered_set>
-
 #include <QObject>
 #include <QKeyEvent>
 

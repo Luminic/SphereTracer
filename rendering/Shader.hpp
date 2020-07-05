@@ -25,7 +25,6 @@ public:
 
     unsigned int get_id();
 
-    void use();
     void set_bool(const char* name, bool value);
     void set_int(const char* name, int value);
     void set_float(const char* name, float value);

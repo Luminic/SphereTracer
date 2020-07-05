@@ -107,11 +107,6 @@ unsigned int Shader::get_id() {
 }
 
 
-void Shader::use() {
-    glUseProgram(id);
-}
-
-
 void Shader::set_bool(const char* name, bool value) {
     unsigned int loc = glGetUniformLocation(id, name);
     glUniform1i(loc, (int)value);

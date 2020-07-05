@@ -4,8 +4,6 @@
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_4_5_Core>
 
-#include <unordered_set>
-
 #include "Camera.hpp"
 #include "Shader.hpp"
 #include "Texture.hpp"

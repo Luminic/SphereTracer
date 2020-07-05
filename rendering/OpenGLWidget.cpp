@@ -128,7 +128,7 @@ void OpenGLWidget::paintGL() {
     camera.update_view_matrix();
     CornerRays eye_rays = camera.get_corner_rays();
     
-    render_shader.use();
+    glUseProgram(render_shader.get_id());
     render_shader.set_vec3("eye", camera.position);
     render_shader.set_vec3("ray00", eye_rays.r00);
     render_shader.set_vec3("ray10", eye_rays.r10);
@@ -146,7 +146,7 @@ void OpenGLWidget::paintGL() {
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
     // Draw the render result to the screen
-    frame_shader.use();
+    glUseProgram(frame_shader.get_id());
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, render_result.get_id());
     frame_shader.set_int("render", 0);
