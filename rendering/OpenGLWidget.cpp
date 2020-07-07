@@ -71,7 +71,7 @@ void OpenGLWidget::initializeGL() {
     camera.position = glm::vec3(0.0f,0.0f,5.0f);
 
     // Create the frame
-    float vertices[] = {
+    float frame_vertices[] = {
         // Top left triangle
         -1.0f,  1.0f,
          1.0f,  1.0f,
@@ -87,7 +87,7 @@ void OpenGLWidget::initializeGL() {
 
     glGenBuffers(1, &frame_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, frame_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(frame_vertices), frame_vertices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -114,6 +114,26 @@ void OpenGLWidget::initializeGL() {
 
     frame_shader.load_shaders(shaders, 2);
     frame_shader.validate();
+
+    // Set up the Vertex SSBO
+    glGenBuffers(1, &vertex_ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, vertex_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vertex_ssbo);
+
+    vertices.push_back(Vertex());
+
+    vertices.push_back(Vertex(
+        glm::vec4(1.0f),
+        glm::vec4(0.2f),
+        glm::vec2(1.0f,0.5f)
+    ));
+
+    qDebug() << vertex_is_opengl_compatible;
+    qDebug() << std::is_trivial<Vertex>::value;
+
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(vertices[0])*vertices.size(), vertices.data(), GL_STATIC_DRAW);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // Not 100% sure if necessary but just in case
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 void OpenGLWidget::resizeGL(int w, int h) {
