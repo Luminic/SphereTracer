@@ -3,7 +3,7 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = Raytracer
+TARGET = Spheretracer
 
 QT += core gui widgets
 CONFIG += debug
