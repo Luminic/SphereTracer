@@ -4,24 +4,6 @@
 #include <QOpenGLDebugLogger>
 
 
-uint32_t round_up_to_pow_2(uint32_t x) {
-    /*
-    In C++20 we can use:
-        #include <bit>
-        std::bit_ceil(x)
-    */
-    // Current implementation from https://bits.stephan-brumme.com/roundUpToNextPowerOfTwo.html
-    x--;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    x++;
-    return x;
-}
-
-
 OpenGLWidget::OpenGLWidget(QWidget* parent) : QOpenGLWidget(parent) {
     QSurfaceFormat format = QSurfaceFormat::defaultFormat();
     format.setVersion(4, 5);
@@ -68,7 +50,7 @@ void OpenGLWidget::initializeGL() {
     glDisable(GL_DEPTH_TEST); // OpenGL's default depth testing isn't useful when using compute shaders for raytracing
     glClearColor(0.0, 0.0, 0.0, 1.0);
 
-    camera.position = glm::vec3(0.0f,0.0f,5.0f);
+    renderer.initialize(width(), height());
 
     // Create the frame
     float frame_vertices[] = {
@@ -95,18 +77,6 @@ void OpenGLWidget::initializeGL() {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    // Setup the render shader
-    ShaderStage comp_shaders[] = {
-        ShaderStage{GL_COMPUTE_SHADER, "rendering/shaders/raytrace.glsl"}
-    };
-
-    render_shader.load_shaders(comp_shaders, 1);
-    render_shader.validate();
-
-    glGetProgramiv(render_shader.get_id(), GL_COMPUTE_WORK_GROUP_SIZE, work_group_size);
-    render_result.create(width(), height());
-
-    // Setup the frame shader to draw the render to the screen
     ShaderStage shaders[] = {
         ShaderStage{GL_VERTEX_SHADER, "rendering/shaders/framebuffer_vs.glsl"},
         ShaderStage{GL_FRAGMENT_SHADER, "rendering/shaders/framebuffer_fs.glsl"}
@@ -114,85 +84,29 @@ void OpenGLWidget::initializeGL() {
 
     frame_shader.load_shaders(shaders, 2);
     frame_shader.validate();
-
-    // Set up the Vertex SSBO
-    glGenBuffers(1, &vertex_ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, vertex_ssbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vertex_ssbo);
-
-    Vertex verts[] = {
-        // Floor
-        Vertex(glm::vec4(-1.0f,-1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 1.0f)),
-        Vertex(glm::vec4( 1.0f,-1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 1.0f)),
-        Vertex(glm::vec4( 1.0f,-1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 1.0f)),
-
-        Vertex(glm::vec4( 1.0f,-1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.0f, 1.0f)),
-        Vertex(glm::vec4(-1.0f,-1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.0f, 1.0f)),
-        Vertex(glm::vec4(-1.0f,-1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.0f, 1.0f)),
-
-        // Ceiling
-        Vertex(glm::vec4(-1.0f, 1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.5f, 1.0f)),
-        Vertex(glm::vec4( 1.0f, 1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.5f, 1.0f)),
-        Vertex(glm::vec4( 1.0f, 1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.5f, 1.0f)),
-
-        Vertex(glm::vec4( 1.0f, 1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 0.0f)),
-        Vertex(glm::vec4(-1.0f, 1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 0.0f)),
-        Vertex(glm::vec4(-1.0f, 1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 0.0f))
-    };
-
-    vertices.insert(vertices.begin(), std::begin(verts), std::end(verts));
-
-    if (vertex_is_opengl_compatible) {
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(vertices[0])*vertices.size(), vertices.data(), GL_STATIC_DRAW);
-    } else {
-        std::vector<unsigned char> vertex_data(VERTEX_STRUCT_SIZE_IN_OPENGL*vertices.size());
-        for (unsigned int i=0; i<vertices.size(); i++) {
-            vertices[i].as_byte_array(&vertex_data[i*VERTEX_STRUCT_SIZE_IN_OPENGL]);
-        }
-        glBufferData(GL_SHADER_STORAGE_BUFFER, vertex_data.size(), vertex_data.data(), GL_STATIC_DRAW);
-    }
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // Not 100% sure if necessary but just in case
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 void OpenGLWidget::resizeGL(int w, int h) {
-    camera.update_perspective_matrix(float(w)/h);
-    render_result.resize(width(), height());
+    renderer.resize(w, h);
 }
 
 void OpenGLWidget::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT);
-
-    // Render
-    camera.update_view_matrix();
-    CornerRays eye_rays = camera.get_corner_rays();
-    
-    glUseProgram(render_shader.get_id());
-    render_shader.set_vec3("eye", camera.position);
-    render_shader.set_vec3("ray00", eye_rays.r00);
-    render_shader.set_vec3("ray10", eye_rays.r10);
-    render_shader.set_vec3("ray01", eye_rays.r01);
-    render_shader.set_vec3("ray11", eye_rays.r11);
-
-    glBindImageTexture(0, render_result.get_id(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-
-    unsigned int worksize_x = round_up_to_pow_2(width());
-    unsigned int worksize_y = round_up_to_pow_2(height());
-    glDispatchCompute(worksize_x/work_group_size[0], worksize_y/work_group_size[1], 1);
-
-    // Clean up & make sure the shader has finished writing to the image
-    glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    Texture* render_result = renderer.render();
 
     // Draw the render result to the screen
     glUseProgram(frame_shader.get_id());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, render_result.get_id());
+    glBindTexture(GL_TEXTURE_2D, render_result->get_id());
     frame_shader.set_int("render", 0);
     glBindVertexArray(frame_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // Clean up
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindVertexArray(0);
 }
 
-Camera* OpenGLWidget::get_camera() {
-    return &camera;
+Renderer* OpenGLWidget::get_renderer() {
+    return &renderer;
 }

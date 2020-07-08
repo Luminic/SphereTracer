@@ -11,7 +11,8 @@ Viewport::Viewport(QWidget* parent) : QWidget(parent), gl_widget(this) {
     layout->addWidget(&gl_widget, 0, 0);
     setFocusPolicy(Qt::StrongFocus);
 
-    cam_controller.set_camera(gl_widget.get_camera());
+    renderer = gl_widget.get_renderer();
+    cam_controller.set_camera(renderer->get_camera());
 
     mouse_captured = false;
 }

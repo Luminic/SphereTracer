@@ -19,8 +19,10 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 
 # Input
 HEADERS += MainWindow.hpp Viewport.hpp CameraController.hpp \
-			rendering/OpenGLWidget.hpp rendering/Camera.hpp rendering/Shader.hpp rendering/Texture.hpp rendering/Vertex.hpp
+			rendering/OpenGLWidget.hpp rendering/Camera.hpp rendering/Shader.hpp \
+			rendering/Texture.hpp rendering/Vertex.hpp rendering/Renderer.hpp
 			
 
 SOURCES += main.cpp MainWindow.cpp Viewport.cpp CameraController.cpp \
-			rendering/OpenGLWidget.cpp rendering/Camera.cpp rendering/Shader.cpp rendering/Texture.cpp rendering/Vertex.cpp
+			rendering/OpenGLWidget.cpp rendering/Camera.cpp rendering/Shader.cpp \
+			rendering/Texture.cpp rendering/Vertex.cpp rendering/Renderer.cpp

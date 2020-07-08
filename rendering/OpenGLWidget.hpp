@@ -6,10 +6,9 @@
 
 #include <vector>
 
-#include "Camera.hpp"
 #include "Shader.hpp"
 #include "Texture.hpp"
-#include "Vertex.hpp"
+#include "Renderer.hpp"
 
 class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT;
@@ -22,22 +21,14 @@ public:
     void resizeGL(int w, int h) override;
     void paintGL() override;
 
-    Camera* get_camera();
+    Renderer* get_renderer();
 
 private:
-    Camera camera;
-
-    Shader render_shader;
-    int work_group_size[3];
-    Texture render_result;
-
     unsigned int frame_vbo;
     unsigned int frame_vao;
     Shader frame_shader;
 
-    std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
-    unsigned int vertex_ssbo;
+    Renderer renderer;
 };
 
 #endif
