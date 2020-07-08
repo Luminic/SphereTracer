@@ -120,13 +120,27 @@ void OpenGLWidget::initializeGL() {
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, vertex_ssbo);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vertex_ssbo);
 
-    vertices.push_back(Vertex());
+    Vertex verts[] = {
+        // Floor
+        Vertex(glm::vec4(-1.0f,-1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 1.0f)),
+        Vertex(glm::vec4( 1.0f,-1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 1.0f)),
+        Vertex(glm::vec4( 1.0f,-1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 1.0f)),
 
-    vertices.push_back(Vertex(
-        glm::vec4(1.0f),
-        glm::vec4(0.2f),
-        glm::vec2(1.0f,0.5f)
-    ));
+        Vertex(glm::vec4( 1.0f,-1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.0f, 1.0f)),
+        Vertex(glm::vec4(-1.0f,-1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.0f, 1.0f)),
+        Vertex(glm::vec4(-1.0f,-1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.0f, 1.0f)),
+
+        // Ceiling
+        Vertex(glm::vec4(-1.0f, 1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.5f, 1.0f)),
+        Vertex(glm::vec4( 1.0f, 1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.5f, 1.0f)),
+        Vertex(glm::vec4( 1.0f, 1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(0.5f, 1.0f)),
+
+        Vertex(glm::vec4( 1.0f, 1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 0.0f)),
+        Vertex(glm::vec4(-1.0f, 1.0f, 1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 0.0f)),
+        Vertex(glm::vec4(-1.0f, 1.0f,-1.0f,1.0f), glm::vec4(0.0f), glm::vec2(1.0f, 0.0f))
+    };
+
+    vertices.insert(vertices.begin(), std::begin(verts), std::end(verts));
 
     if (vertex_is_opengl_compatible) {
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(vertices[0])*vertices.size(), vertices.data(), GL_STATIC_DRAW);

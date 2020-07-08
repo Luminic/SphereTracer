@@ -44,7 +44,7 @@ layout (std140, binding=0) buffer VertexBuffer {
     // vertex[2]      48                 96
     // ...
     // Maximum of 2,666,666 Vertices (128 MB / 48 B)
-} vertex_buffer;
+};
 
 // layout (std140, binding=0) buffer IndexBuffer {
 //     int indices[];
@@ -57,6 +57,103 @@ uniform vec3 ray00;
 uniform vec3 ray10;
 uniform vec3 ray01;
 uniform vec3 ray11;
+
+#define EPSILON 0.000001f
+#define NEAR_PLANE 0.1f
+#define FAR_PLANE 100.0f
+
+float ray_plane_int(vec3 ray_origin, vec3 ray_dir, vec3 plane_point, vec3 plane_normal) {
+    /*
+    A ray is described as ray_orign + t * ray_dir
+    This function returns t if the ray intersects the plane. Negative output means no intersection
+    
+    Ray equation: <x,y,z> = ray_orign + t * ray_dir
+    Plane equation: dot(plane_normal, <x,y,z>) + D = 0
+    We can calculate D = -dot(plane_normal, plane_point)
+
+    dot(plane_normal, ray_orign + t * ray_dir) + D = 0
+    dot(plane_normal, ray_orign) + t * dot(plane_normal, ray_dir) + D = 0
+    t = - (D + dot(plane_normal, ray_orign)) / dot(plane_normal, ray_dir)
+    */
+    float denom = dot(plane_normal, ray_dir);
+
+    if (abs(denom) <= EPSILON) {
+        // The ray is parallel to the plane
+        return -1;
+    }
+
+    float D = -dot(plane_normal, plane_point);
+    float numer = -(dot(plane_normal, ray_origin) + D);
+
+    return numer/denom;
+}
+
+vec4 barycentric_coordinates(vec3 point, vec3 tri0, vec3 tri1, vec3 tri2) {
+    /*
+    Returns the barycentric coordinates of point in the triangle tri0-2
+    The w value is 1 if the point is inside of the triangle and -1 otherwise
+    */
+    float double_area_tri = length(cross(tri1-tri0, tri2-tri0));
+
+    float area0 = length(cross(tri1-point, tri2-point)) / double_area_tri;
+    float area1 = length(cross(tri0-point, tri2-point)) / double_area_tri;
+    float area2 = length(cross(tri0-point, tri1-point)) / double_area_tri;
+
+    if (area0+area1+area2-1 <= EPSILON) {
+        // If the combined area of the 3 mini triangles equals the area of the triangle
+        // the point is inside of the triangle
+        return vec4(area0, area1, area2, 1);
+    } else {
+        // Otherwise, the point is outside of the triangle
+        // Still return the barycentric coordinates because they might still be useful
+        return vec4(area0, area1, area2, -1);
+    }
+}
+
+Vertex get_vertex_data(vec3 ray_origin, vec3 ray_dir) {
+    /*
+    Returns an interpolated vertex from the intersection between the ray and the
+    nearest triangle it collides with
+
+    If there is no triangle, the w component of position will be -1.0f
+    otherwise the w component will be 1.0f
+    */
+    float depth = FAR_PLANE;
+    Vertex vert = Vertex(
+        vec4(0.0f,0.0f,0.0f,-1.0f),
+        vec4(0.0f),
+        vec2(0.0f)
+    );
+    for (int i=0; i</*indices.length/*/4; i++) {
+        Vertex v0 = vertices[3*i+0]; //vertices[indices[i]];
+        Vertex v1 = vertices[3*i+1]; //vertices[indices[i+1]];
+        Vertex v2 = vertices[3*i+2]; //vertices[indices[i+2]];
+
+        vec3 normal = cross(vec3(v1.position-v0.position), vec3(v2.position-v0.position));
+        float rpi = ray_plane_int(ray_origin, ray_dir, v0.position.xyz, normalize(normal));
+
+        // If the ray intersects the triangle
+        float dist = rpi*length(ray_dir);
+        if (dist >= NEAR_PLANE && dist <= depth) {
+            vec3 intersection_point = ray_origin + rpi*ray_dir;
+            vec4 bc = barycentric_coordinates(intersection_point, v0.position.xyz, v1.position.xyz, v2.position.xyz);
+            // If the point is inside of the triangle
+            if (bc.w > 0.0f) {
+                depth = dist;
+                vert.position = vec4(intersection_point, 1.0f);
+                vert.normal = bc.x*v0.normal + bc.y*v1.normal + bc.z*v2.normal;
+                vert.tex_coord = bc.x*v0.tex_coord + bc.y*v1.tex_coord + bc.z*v2.tex_coord;
+            }
+        }
+    }
+    return vert;
+}
+
+vec4 trace(vec3 ray_origin, vec3 ray_dir) {
+    Vertex vert = get_vertex_data(ray_origin, ray_dir);
+    return vec4(vert.tex_coord, 0.0f, 1.0f);
+}
+
 
 struct Box {
     vec3 min;
@@ -81,7 +178,7 @@ vec2 intersect_box(vec3 origin, vec3 dir, const Box b) {
   return vec2(t_near, t_far);
 }
 
-#define FAR_PLANE 100.0f
+
 
 vec3 intersect_boxes(vec3 eye, vec3 ray) {
     float min_t = FAR_PLANE;// * length(ray);
@@ -92,6 +189,10 @@ vec3 intersect_boxes(vec3 eye, vec3 ray) {
                 min_t = lambda.x;
             }
         }
+    }
+
+    if (get_vertex_data(eye, ray).position.w >= 0.0f) {
+        return 0.0f.xxx;
     }
 
     return (min_t/FAR_PLANE).xxx;
@@ -111,7 +212,9 @@ void main() {
     vec3 ray = mix(mix(ray00, ray10, tex_coords.x), mix(ray01, ray11, tex_coords.x), tex_coords.y);
 
     //imageStore(framebuffer, pix, vec4(intersect_boxes(eye, ray), 1.0f));
-    vec4 col = vec4(vertex_buffer.vertices[1].normal.z, vertex_buffer.vertices[1].tex_coord.x, vertex_buffer.vertices[1].tex_coord.y, 1.0f);
+    vec4 col = trace(eye, ray);
+    // vec4 col = vec4(intersect_boxes(eye, ray), 1.0f);
+    // vec4 col = vec4(vertices[1].normal.z, vertices[1].tex_coord.x, vertices[1].tex_coord.y, 1.0f);
     // vec4 col = vec4(0.2f,1.0f,0.5f,1.0f);
     imageStore(framebuffer, pix, col);
 }
