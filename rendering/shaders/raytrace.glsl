@@ -22,6 +22,7 @@ struct Vertex {
                     // 4                  4
                     // 4                  8
                     // 4 (total:16)       12
+
     vec4 normal;    // 4                  16
                     // 4                  20
                     // 4                  24
@@ -46,9 +47,10 @@ layout (std140, binding=0) buffer VertexBuffer {
     // Maximum of 2,666,666 Vertices (128 MB / 48 B)
 };
 
-// layout (std140, binding=0) buffer IndexBuffer {
-//     int indices[];
-// }
+layout (std430, binding=1) buffer IndexBuffer {
+    // Memory layout should exactly match that of a C++ int array
+    int indices[];
+};
 
 layout (binding = 0, rgba32f) uniform image2D framebuffer;
 
@@ -124,10 +126,10 @@ Vertex get_vertex_data(vec3 ray_origin, vec3 ray_dir) {
         vec4(0.0f),
         vec2(0.0f)
     );
-    for (int i=0; i</*indices.length/*/4; i++) {
-        Vertex v0 = vertices[3*i+0]; //vertices[indices[i]];
-        Vertex v1 = vertices[3*i+1]; //vertices[indices[i+1]];
-        Vertex v2 = vertices[3*i+2]; //vertices[indices[i+2]];
+    for (int i=0; i<indices.length()/3; i++) {
+        Vertex v0 = vertices[indices[i*3]];
+        Vertex v1 = vertices[indices[i*3+1]];
+        Vertex v2 = vertices[indices[i*3+2]];
 
         vec3 normal = cross(vec3(v1.position-v0.position), vec3(v2.position-v0.position));
         float rpi = ray_plane_int(ray_origin, ray_dir, v0.position.xyz, normalize(normal));
@@ -154,50 +156,6 @@ vec4 trace(vec3 ray_origin, vec3 ray_dir) {
     return vec4(vert.tex_coord, 0.0f, 1.0f);
 }
 
-
-struct Box {
-    vec3 min;
-    vec3 max;
-};
-
-#define NR_BOXES 2
-const Box boxes[] = {
-    /* Box in the middle */
-    {vec3(-0.5, -0.5, -0.5), vec3(0.5, 0.5, 0.5)},
-    /* The ground */
-    {vec3(-5.0, -1.0, -5.0), vec3(5.0, -0.5, 5.0)},
-};
-
-vec2 intersect_box(vec3 origin, vec3 dir, const Box b) {
-  vec3 t_min = (b.min - origin) / dir;
-  vec3 t_max = (b.max - origin) / dir;
-  vec3 t1 = min(t_min, t_max);
-  vec3 t2 = max(t_min, t_max);
-  float t_near = max(max(t1.x, t1.y), t1.z);
-  float t_far = min(min(t2.x, t2.y), t2.z);
-  return vec2(t_near, t_far);
-}
-
-
-
-vec3 intersect_boxes(vec3 eye, vec3 ray) {
-    float min_t = FAR_PLANE;// * length(ray);
-    for (int i=0; i<NR_BOXES; i++) {
-        vec2 lambda = intersect_box(eye, ray, boxes[i]);
-        if (lambda.x > 0.0 && lambda.x < lambda.y) {
-            if (lambda.x <= min_t) {
-                min_t = lambda.x;
-            }
-        }
-    }
-
-    if (get_vertex_data(eye, ray).position.w >= 0.0f) {
-        return 0.0f.xxx;
-    }
-
-    return (min_t/FAR_PLANE).xxx;
-}
-
 layout (local_size_x = 8, local_size_y = 8) in;
 
 void main() {
@@ -211,10 +169,6 @@ void main() {
 
     vec3 ray = mix(mix(ray00, ray10, tex_coords.x), mix(ray01, ray11, tex_coords.x), tex_coords.y);
 
-    //imageStore(framebuffer, pix, vec4(intersect_boxes(eye, ray), 1.0f));
     vec4 col = trace(eye, ray);
-    // vec4 col = vec4(intersect_boxes(eye, ray), 1.0f);
-    // vec4 col = vec4(vertices[1].normal.z, vertices[1].tex_coord.x, vertices[1].tex_coord.y, 1.0f);
-    // vec4 col = vec4(0.2f,1.0f,0.5f,1.0f);
     imageStore(framebuffer, pix, col);
 }

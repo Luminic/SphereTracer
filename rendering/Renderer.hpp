@@ -32,6 +32,7 @@ private:
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     unsigned int vertex_ssbo;
+    unsigned int index_ssbo;
 
     unsigned int width;
     unsigned int height;
