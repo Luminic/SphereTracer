@@ -34,22 +34,56 @@ float floor_plane_SDF(vec3 point, float height) {
     return point.y-height;
 }
 
+#define POWER 8.0f
+float mandelbulb_SDF(vec3 point) {
+    vec3 z = point;
+    float dr = 1.0f;
+    float r = 0.0f;
+
+    // vec4 trap = vec4(abs(z), length(z));
+
+    for (int i=0; i<4; i++) {
+        r = length(z);
+        if (r>256.0f)
+            break;
+        
+        float theta = acos(z.y/r);
+        float phi = atan(z.x, z.z);
+        dr = pow(r, POWER-1.0f) * POWER * dr + 1.0f;
+
+        float zr = pow(r, POWER);
+        theta *= POWER;
+        phi *= POWER;
+
+        z = zr*vec3(sin(theta)*sin(phi), cos(theta), sin(theta)*cos(phi));
+        z += point;
+
+        // trap = min(trap, vec4(abs(z), length(z)));
+    }
+    // return vec4(trap.yzw, 0.25*log(r)*r/dr);
+    return 0.25*log(r)*r/dr;
+}
+
 float scene_SDF(vec3 point) {
     float dist = FAR_PLANE;
-    for (int j=0; j<NR_SPHERES; j++) {
-        dist = min(dist, sphere_SDF(point, spheres[j]));
-    }
+    // for (int j=0; j<NR_SPHERES; j++) {
+    //     dist = min(dist, sphere_SDF(point, spheres[j]));
+    // }
     // dist = min(dist, floor_plane_SDF(point, -1.0f));
+    dist = min(dist, mandelbulb_SDF(point));
     return dist;
 }
 
 vec4 trace(vec3 ray_origin, vec3 ray_dir) {
     vec3 location = ray_origin;
-    float dist;
+    float dist = FAR_PLANE;
     for (int i=0; i<MAX_STEPS; i++) {
+        // vec4 mandelbulb = mandelbulb_SDF(location);
+        // dist = min(dist, mandelbulb.w);
         dist = scene_SDF(location);
 
         if (dist <= 0.0f) {
+            // return vec4(mandelbulb.rgb, 1.0f);
             return vec4(location, 1.0f);
         }
         else if (dist >= FAR_PLANE-EPSILON) {
@@ -62,7 +96,8 @@ vec4 trace(vec3 ray_origin, vec3 ray_dir) {
 }
 
 #define OFFSET 0.0001f
-#define SUN_DIR vec3(0.0f, 1.0f, 0.0f)
+#define SUN_DIR  normalize(vec3(-0.2f, 1.0f, 0.2f))
+#define SUN_DIR2 normalize(vec3(0.2f, 1.0f, -0.2f))
 #define BIAS 0.01f
 vec4 shade(vec3 point, vec3 ray_dir) {
     vec3 normal = vec3(
@@ -71,14 +106,17 @@ vec4 shade(vec3 point, vec3 ray_dir) {
         scene_SDF(vec3(point.x, point.y, point.z+OFFSET)) - scene_SDF(vec3(point.x, point.y, point.z-OFFSET))
     );
     normal = normalize(normal);
-    float diffuse = 0.0f;
-    // if (trace(point+SUN_DIR*(0.01f), SUN_DIR).w <= 0.0f) {
-    diffuse = dot(normal, SUN_DIR);
-    // }
+    vec3 diffuse = vec3(0.0f);
+    if (trace(point+SUN_DIR*(0.01f), SUN_DIR).w <= 0.0f) {
+        diffuse += dot(normal, SUN_DIR) * vec3(1.0f,0.5f,0.5f);
+    }
+    if (trace(point+SUN_DIR2*(0.01f), SUN_DIR2).w <= 0.0f) {
+        diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
+    }
     // vec3 halfway = normalize(normal + SUN_DIR);
     // float specular = pow(max(dot(normal, halfway), 0.0f), 128.0f);
-    diffuse = max(diffuse, 0.1f);
-    return vec4((diffuse).xxx, 1.0f);
+    diffuse = max(diffuse, 0.1f.xxx);
+    return vec4(diffuse, 1.0f);
 }
 
 
