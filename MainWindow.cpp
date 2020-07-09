@@ -4,7 +4,7 @@
 #include <QKeyEvent>
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
-    setWindowTitle("Raytracer");
+    setWindowTitle("Sphere Marcher");
     resize(800, 600);
 
     setCentralWidget(&viewport);

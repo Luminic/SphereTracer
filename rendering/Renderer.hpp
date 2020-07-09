@@ -7,7 +7,6 @@
 #include "Camera.hpp"
 #include "Shader.hpp"
 #include "Texture.hpp"
-#include "Vertex.hpp"
 
 
 class Renderer : public QObject, protected QOpenGLFunctions_4_5_Core {
@@ -28,11 +27,6 @@ private:
     Shader render_shader;
     int work_group_size[3];
     Texture render_result;
-
-    std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
-    unsigned int vertex_ssbo;
-    unsigned int index_ssbo;
 
     unsigned int width;
     unsigned int height;
