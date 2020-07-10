@@ -34,7 +34,9 @@ float floor_plane_SDF(vec3 point, float height) {
     return point.y-height;
 }
 
-#define POWER 8.0f
+#define POWER 8
+#define IERATIONS 4
+#define BAILOUT 256.0f
 float mandelbulb_SDF(vec3 point) {
     vec3 z = point;
     float dr = 1.0f;
@@ -42,21 +44,49 @@ float mandelbulb_SDF(vec3 point) {
 
     // vec4 trap = vec4(abs(z), length(z));
 
-    for (int i=0; i<4; i++) {
+    for (int i=0; i<IERATIONS; i++) {
         r = length(z);
-        if (r>256.0f)
+        if (r>BAILOUT)
             break;
-        
-        float theta = acos(z.y/r);
-        float phi = atan(z.x, z.z);
+
         dr = pow(r, POWER-1.0f) * POWER * dr + 1.0f;
-
         float zr = pow(r, POWER);
-        theta *= POWER;
-        phi *= POWER;
 
-        z = zr*vec3(sin(theta)*sin(phi), cos(theta), sin(theta)*cos(phi));
-        z += point;
+        #if POWER == 8
+            /* 
+            If the power is 8 we can optimize out the inv trig and trig functions by applying
+            the double angle formula 3 times
+            */
+            float len_xz = length(z.xz);
+
+            float sin_theta = z.z / len_xz;
+            float cos_theta = z.x / len_xz;
+
+            float sin_phi = len_xz / r;
+            float cos_phi = z.y / r;
+
+            float cos_theta_squared = pow(z.x, 2) / dot(z.xz, z.xz);
+            float cos_phi_squared = pow(z.y, 2) / dot(z, z);
+
+            float sin_8_phi = 2*(2*(2*sin_phi*cos_phi)*(2*cos_phi_squared-1))*(2*pow(2*cos_phi_squared-1, 2)-1);
+
+            z = zr * vec3(
+            //  cos(8*theta)                                   // sin(8*phi)
+                (2*pow(2*pow(2*cos_theta_squared-1, 2)-1, 2)-1) * sin_8_phi,
+            //  cos(8*phi)
+                (2*pow(2*pow(2*cos_phi_squared-1, 2)-1, 2)-1),
+            //  sin(8*theta)                                           // sin(8*phi)
+                (2*(2*(2*sin_theta*cos_theta)*(2*cos_theta_squared-1))) * (2*pow(2*cos_theta_squared-1, 2)-1) * sin_8_phi
+            );
+            z += point;
+        #else
+            float theta = atan(z.z, z.x);
+            float phi = acos(z.y/r);
+            theta *= POWER;
+            phi *= POWER;
+            z = zr*vec3(cos(theta)*sin(phi), cos(phi), sin(theta)*sin(phi));
+            z += point;
+        #endif
 
         // trap = min(trap, vec4(abs(z), length(z)));
     }
@@ -98,6 +128,7 @@ vec4 trace(vec3 ray_origin, vec3 ray_dir) {
 #define OFFSET 0.0001f
 #define SUN_DIR  normalize(vec3(-0.2f, 1.0f, 0.2f))
 #define SUN_DIR2 normalize(vec3(0.2f, 1.0f, -0.2f))
+#define SHADOWS 1
 #define BIAS 0.01f
 vec4 shade(vec3 point, vec3 ray_dir) {
     vec3 normal = vec3(
@@ -107,12 +138,19 @@ vec4 shade(vec3 point, vec3 ray_dir) {
     );
     normal = normalize(normal);
     vec3 diffuse = vec3(0.0f);
-    if (trace(point+SUN_DIR*(0.01f), SUN_DIR).w <= 0.0f) {
+
+    #if SHADOWS
+        if (trace(point+SUN_DIR*(0.01f), SUN_DIR).w <= 0.0f) {
+            diffuse += dot(normal, SUN_DIR) * vec3(1.0f,0.5f,0.5f);
+        }
+        if (trace(point+SUN_DIR2*(0.01f), SUN_DIR2).w <= 0.0f) {
+            diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
+        }
+    #else
         diffuse += dot(normal, SUN_DIR) * vec3(1.0f,0.5f,0.5f);
-    }
-    if (trace(point+SUN_DIR2*(0.01f), SUN_DIR2).w <= 0.0f) {
         diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
-    }
+    #endif
+
     // vec3 halfway = normalize(normal + SUN_DIR);
     // float specular = pow(max(dot(normal, halfway), 0.0f), 128.0f);
     diffuse = max(diffuse, 0.1f.xxx);
