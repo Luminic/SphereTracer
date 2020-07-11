@@ -21,19 +21,30 @@ struct Material {
 };
 
 
-#define NR_SPHERES 1
+#define NR_SPHERES 3
 struct Sphere {
     vec3 position;
     float radius;
 } spheres[] = {
-    {vec3(0.0f, 0.0f, 0.0f), 2.0f},
+    {vec3(3.0f, 0.0f, 0.0f), 1.5f},
     {vec3(3.0f, 3.5f, 0.0f), 1.0f},
     {vec3(-3.0f, 3.5f, 0.0f), 1.0f}
 };
 
 float sphere_SDF(vec3 point, Sphere sphere) {
-    vec3 p = mod(point+5.0f, 10.0f)-5.0f;
-    return length(sphere.position-p) - sphere.radius;
+    return length(point-sphere.position) - sphere.radius;
+}
+
+struct Cylinder {
+    vec3 position;
+    float height;
+    float radius;
+};
+
+float cylinder_SDF(vec3 point, Cylinder cylinder) {
+    vec3 p = point - cylinder.position;
+    vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(cylinder.height, cylinder.radius);
+    return min(max(d.x, d.y), 0.0f) + length(max(d, 0.0f));
 }
 
 float floor_plane_SDF(vec3 point, float height) {
@@ -100,59 +111,42 @@ float mandelbulb_SDF(vec3 point, out Material material) {
 
 float scene_SDF(vec3 point, out Material material) {
     float dist = FAR_PLANE;
-    // for (int j=0; j<NR_SPHERES; j++) {
-    //     dist = min(dist, sphere_SDF(point, spheres[j]));
-    // }
     Material tmp;
-    float d = mandelbulb_SDF(point, tmp);
-    // mandelbulb.w = max(max(point.y+0.5f, -0.51f-point.y), mandelbulb.w);
+    float d;
+
+    d = mandelbulb_SDF(point, tmp);
     if (d <= dist) {
         dist = d;
         material = tmp;
     }
-    // dist = min(dist, max(max(point.y-0.51f, 0.5f-point.y), mandelbulb_SDF(point)));
-    // dist = min(dist, mandelbulb_SDF(point));
+
+    for (int j=0; j<NR_SPHERES; j++) {
+        d = sphere_SDF(point, spheres[j]);
+        if (d <= dist) {
+            dist = d;
+            material = Material(0.8f.xxx);
+        }
+    }
+
+    d = cylinder_SDF(point, Cylinder(vec3(-3.0f, 0.0f, 0.0f), 0.5f, 1.5));
+    if (d <= dist) {
+        dist = d;
+        material = Material(0.5f.xxx);
+    }
+
+    // Floor plane
+    d = max(point.y+1.5f, -1.6f-point.y);
+    if (d <= dist) {
+        dist = d;
+        material = Material(1.0f.xxx);
+    }
     return dist;
 }
-
-#define OFFSET 0.0001f
-#define SUN_DIR  normalize(vec3(-0.5f, 1.0f, 0.5f))
-#define SUN_DIR2 normalize(vec3(0.2f, 1.0f, -0.2f))
-#define SHADOWS 0
-#define BIAS 0.01f
-// vec4 shade(vec3 point, vec3 ray_dir) {
-//     vec3 normal = vec3(
-//         scene_SDF(vec3(point.x+OFFSET, point.y, point.z)).w - scene_SDF(vec3(point.x-OFFSET, point.y, point.z)).w,
-//         scene_SDF(vec3(point.x, point.y+OFFSET, point.z)).w - scene_SDF(vec3(point.x, point.y-OFFSET, point.z)).w,
-//         scene_SDF(vec3(point.x, point.y, point.z+OFFSET)).w - scene_SDF(vec3(point.x, point.y, point.z-OFFSET)).w
-//     );
-//     normal = normalize(normal);
-//     vec3 diffuse = vec3(0.0f);
-
-//     #if SHADOWS
-//         if (trace(point+SUN_DIR*(0.01f), SUN_DIR).w <= 0.0f) {
-//             diffuse += dot(normal, SUN_DIR) * vec3(1.0f,0.5f,0.5f);
-//         }
-//         if (trace(point+SUN_DIR2*(0.01f), SUN_DIR2).w <= 0.0f) {
-//             diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
-//         }
-//     #else
-//         diffuse += dot(normal, SUN_DIR) * vec3(1.0f,1.0f,1.0f);
-//         // diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
-//     #endif
-
-//     // vec3 halfway = normalize(normal + SUN_DIR);
-//     // float specular = pow(max(dot(normal, halfway), 0.0f), 128.0f);
-//     diffuse = max(diffuse, 0.1f.xxx);
-//     return vec4(diffuse, 1.0f);
-// }
 
 vec4 trace(vec3 ray_origin, vec3 ray_dir, out Material material) {
     vec3 location = ray_origin;
     float dist = FAR_PLANE;
     for (int i=0; i<MAX_STEPS; i++) {
-        // vec4 mandelbulb = mandelbulb_SDF(location);
-        // dist = min(dist, mandelbulb.w);
         dist = scene_SDF(location, material);
 
         if (dist <= 0.0f) {
@@ -170,6 +164,38 @@ vec4 trace(vec3 ray_origin, vec3 ray_dir, out Material material) {
     // return vec4(location, -1.0f);
 }
 
+#define OFFSET 0.0001f
+#define SUN_DIR  normalize(vec3(-0.5f, 1.0f, 0.5f))
+#define SUN_DIR2 normalize(vec3(0.2f, 1.0f, -0.2f))
+#define SHADOWS 1
+#define BIAS 0.01f
+vec4 shade(vec3 point, vec3 ray_dir, Material material) {
+    Material tmp;
+    vec3 normal = vec3(
+        scene_SDF(vec3(point.x+OFFSET, point.y, point.z), tmp) - scene_SDF(vec3(point.x-OFFSET, point.y, point.z), tmp),
+        scene_SDF(vec3(point.x, point.y+OFFSET, point.z), tmp) - scene_SDF(vec3(point.x, point.y-OFFSET, point.z), tmp),
+        scene_SDF(vec3(point.x, point.y, point.z+OFFSET), tmp) - scene_SDF(vec3(point.x, point.y, point.z-OFFSET), tmp)
+    );
+    normal = normalize(normal);
+    vec3 diffuse = 0.0f.xxx;
+
+    #if SHADOWS
+        if (trace(point+SUN_DIR*(0.01f), SUN_DIR, tmp).w <= 0.0f) {
+            diffuse += dot(normal, SUN_DIR);
+        }
+        // if (trace(point+SUN_DIR2*(0.01f), SUN_DIR2).w <= 0.0f) {
+        //     diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
+        // }
+    #else
+        diffuse += dot(normal, SUN_DIR);
+        // diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
+    #endif
+
+    // vec3 halfway = normalize(normal + SUN_DIR);
+    // float specular = pow(max(dot(normal, halfway), 0.0f), 128.0f);
+    diffuse = max(diffuse, 0.1f.xxx);
+    return vec4(diffuse*material.color, 1.0f);
+}
 
 layout (local_size_x = 8, local_size_y = 8) in;
 
@@ -186,12 +212,12 @@ void main() {
     ray = normalize(ray);
 
     Material material;
-    vec4 pos = trace(eye/4.0f, ray, material);
+    vec4 pos = trace(eye, ray, material);
     // if (pos.w >= 0.0f) {
-    //     col = shade(pos.xyz, ray);
+    vec4 col = shade(pos.xyz, ray, material);
     // } else {
     //     col = vec4(0.0f, 0.0f, 0.0f, 1.0f);
     // }
 
-    imageStore(framebuffer, pix, vec4(material.color, 1.0f));
+    imageStore(framebuffer, pix, col);
 }

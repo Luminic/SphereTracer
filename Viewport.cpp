@@ -50,7 +50,7 @@ void Viewport::keyReleaseEvent(QKeyEvent *event) {
 
 void Viewport::mouseMoveEvent(QMouseEvent* event) {
     if (mouse_captured) {
-        QPoint screen_center(geometry().left()+geometry().width()/2, geometry().top()+geometry().height()/2);
+        QPoint screen_center = mapToGlobal(QPoint(geometry().left()+geometry().width()/2, geometry().top()+geometry().height()/2));
         QPoint mouse_movement = QCursor::pos()-screen_center;
         cam_controller.mouse_moved(mouse_movement.x(), mouse_movement.y());
         QCursor::setPos(screen_center);
@@ -65,7 +65,7 @@ void Viewport::main_loop() {
 
 void Viewport::capture_mouse() {
     mouse_captured = true;
-    QPoint screen_center(geometry().left()+geometry().width()/2, geometry().top()+geometry().height()/2);
+    QPoint screen_center = mapToGlobal(QPoint(geometry().left()+geometry().width()/2, geometry().top()+geometry().height()/2));
     QCursor::setPos(screen_center);
     grabMouse(Qt::BlankCursor);
     setMouseTracking(true);

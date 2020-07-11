@@ -14,7 +14,7 @@ CameraController::CameraController(Camera* camera, QObject* parent) :
     camera(camera)
 {
     mouse_sensitivity = 0.1;
-    speed = 0.3;
+    speed = 0.075;
     init();
 }
 
