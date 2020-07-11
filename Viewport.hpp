@@ -2,6 +2,7 @@
 #define VIEWPORT_HPP
 
 #include <QWidget>
+#include <QElapsedTimer>
 
 #include "rendering/OpenGLWidget.hpp"
 #include "rendering/Renderer.hpp"
@@ -30,6 +31,8 @@ private:
 
     CameraController cam_controller;
     bool mouse_captured;
+
+    QElapsedTimer timer;
 };
 
 #endif

@@ -14,10 +14,10 @@ class Renderer : public QObject, protected QOpenGLFunctions_4_5_Core {
 
 public:
     Renderer(QObject* parent=nullptr);
-    void initialize(unsigned int width, unsigned int height);
+    Texture* initialize(unsigned int width, unsigned int height);
     void resize(unsigned int width, unsigned int height);
 
-    Texture* render();
+    Texture* render(int time);
 
     Camera* get_camera();
 

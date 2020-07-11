@@ -20,7 +20,7 @@ uint32_t round_up_to_pow_2(uint32_t x) {
 
 Renderer::Renderer(QObject* parent) : QObject(parent) {}
 
-void Renderer::initialize(unsigned int width, unsigned int height) {
+Texture* Renderer::initialize(unsigned int width, unsigned int height) {
     initializeOpenGLFunctions();
 
     this->width = width;
@@ -36,6 +36,8 @@ void Renderer::initialize(unsigned int width, unsigned int height) {
 
     glGetProgramiv(render_shader.get_id(), GL_COMPUTE_WORK_GROUP_SIZE, work_group_size);
     render_result.create(width, height);
+
+    return &render_result;
 }
 
 void Renderer::resize(unsigned int width, unsigned int height) {
@@ -46,7 +48,7 @@ void Renderer::resize(unsigned int width, unsigned int height) {
     render_result.resize(width, height);
 }
 
-Texture* Renderer::render() {
+Texture* Renderer::render(int time) {
     camera.update_view_matrix();
     CornerRays eye_rays = camera.get_corner_rays();
     
@@ -56,6 +58,8 @@ Texture* Renderer::render() {
     render_shader.set_vec3("ray10", eye_rays.r10);
     render_shader.set_vec3("ray01", eye_rays.r01);
     render_shader.set_vec3("ray11", eye_rays.r11);
+
+    render_shader.set_int("time", time);
 
     glBindImageTexture(0, render_result.get_id(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 

@@ -17,11 +17,14 @@ public:
     OpenGLWidget(QWidget* parent=nullptr);
     ~OpenGLWidget();
 
+    void main_loop(int time);
+
+    Renderer* get_renderer();
+
+protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;
     void paintGL() override;
-
-    Renderer* get_renderer();
 
 private:
     unsigned int frame_vbo;
@@ -29,6 +32,7 @@ private:
     Shader frame_shader;
 
     Renderer renderer;
+    Texture* render_result;
 };
 
 #endif

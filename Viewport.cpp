@@ -15,6 +15,7 @@ Viewport::Viewport(QWidget* parent) : QWidget(parent), gl_widget(this) {
     cam_controller.set_camera(renderer->get_camera());
 
     mouse_captured = false;
+    timer.start();
 }
 
 Viewport::~Viewport() {}
@@ -56,7 +57,7 @@ void Viewport::mouseMoveEvent(QMouseEvent* event) {
 
 void Viewport::main_loop() {
     cam_controller.main_loop();
-    gl_widget.update();
+    gl_widget.main_loop(timer.elapsed());
 }
 
 void Viewport::capture_mouse() {

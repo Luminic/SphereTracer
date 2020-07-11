@@ -50,7 +50,7 @@ void OpenGLWidget::initializeGL() {
     glDisable(GL_DEPTH_TEST); // OpenGL's default depth testing isn't useful when using compute shaders for raytracing
     glClearColor(0.0, 0.0, 0.0, 1.0);
 
-    renderer.initialize(width(), height());
+    render_result = renderer.initialize(width(), height());
 
     // Create the frame
     float frame_vertices[] = {
@@ -92,8 +92,6 @@ void OpenGLWidget::resizeGL(int w, int h) {
 
 void OpenGLWidget::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT);
-    Texture* render_result = renderer.render();
-
     // Draw the render result to the screen
     glUseProgram(frame_shader.get_id());
     glActiveTexture(GL_TEXTURE0);
@@ -105,6 +103,11 @@ void OpenGLWidget::paintGL() {
     // Clean up
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindVertexArray(0);
+}
+
+void OpenGLWidget::main_loop(int time) {
+    render_result = renderer.render(time);
+    update();
 }
 
 Renderer* OpenGLWidget::get_renderer() {
