@@ -3,6 +3,8 @@
 #include <QApplication>
 #include <QKeyEvent>
 #include <QGridLayout>
+#include <QFile>
+#include <QFileDialog>
 #include <QDebug>
 
 Viewport::Viewport(QWidget* parent) : QWidget(parent), gl_widget(this) {
@@ -30,6 +32,7 @@ void Viewport::keyPressEvent(QKeyEvent* event) {
             else capture_mouse();
             break;
         case Qt::Key_F2:
+            screenshot();
             break;
         case Qt::Key_F3:
             break;
@@ -72,4 +75,22 @@ void Viewport::release_mouse() {
     mouse_captured = false;
     releaseMouse();
     setMouseTracking(false);
+}
+
+void Viewport::screenshot() {
+    if (mouse_captured)
+        release_mouse();
+    QFileDialog dialog(this);
+    dialog.setWindowTitle("Save Screenshot");
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setNameFilter(tr("Images (*.png *.bmp *.jpg)"));
+    if (dialog.exec()) {
+        QStringList fileNames(dialog.selectedFiles());
+        if (QRegExp(".+\\.(png|bmp|jpg)").exactMatch(fileNames.at(0))) {
+            gl_widget.grabFramebuffer().save(fileNames.at(0));
+        } else {
+            qDebug() << "Save error: bad format or filename.";
+        }
+    }
 }

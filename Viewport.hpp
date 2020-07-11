@@ -26,6 +26,8 @@ private:
     void capture_mouse();
     void release_mouse();
 
+    void screenshot();
+
     OpenGLWidget gl_widget;
     Renderer* renderer;
 
