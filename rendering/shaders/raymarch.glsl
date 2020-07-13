@@ -106,7 +106,12 @@ float mandelbulb_SDF(vec3 point, out Material material) {
         #endif
     }
     material = Material(trap.xyz);
+    // Bounding sphere
+    if (length(point) >= 2.0f) {
+        return length(point)-1.5f;
+    }
     return 0.25*log(dot(z,z))*length(z)/dr;
+    // return max(min(0.25*log(dot(z,z))*length(z)/dr, length(point)-1.5f), point.y+1.5f*(abs((time%10000)/2500.0f-2.0f)-1.0f));
 }
 
 float scene_SDF(vec3 point, out Material material) {
@@ -131,7 +136,8 @@ float scene_SDF(vec3 point, out Material material) {
     d = cylinder_SDF(point, Cylinder(vec3(-3.0f, 0.0f, 0.0f), 0.5f, 1.5));
     if (d <= dist) {
         dist = d;
-        material = Material(0.5f.xxx);
+        // material = Material(0.5f.xxx);
+        material = Material(1.0f.xxx);
     }
 
     // Floor plane
@@ -143,32 +149,66 @@ float scene_SDF(vec3 point, out Material material) {
     return dist;
 }
 
-vec4 trace(vec3 ray_origin, vec3 ray_dir, out Material material) {
-    vec3 location = ray_origin;
-    float dist = FAR_PLANE;
+vec4 camera_ray(vec3 ray_origin, vec3 ray_dir, out Material material) {
+    float dist_traveled = 0.0f;
     for (int i=0; i<MAX_STEPS; i++) {
-        dist = scene_SDF(location, material);
+        float dist = scene_SDF(ray_origin+ray_dir*dist_traveled, material);
 
         if (dist <= 0.0f) {
-            return vec4(location, 1.0f);
+            return vec4(ray_origin+ray_dir*dist_traveled, 1.0f);
             // return vec4(location, 1.0f);
         }
-        else if (dist >= FAR_PLANE-EPSILON) {
+        else if (dist >= FAR_PLANE-EPSILON || dist_traveled >= FAR_PLANE-EPSILON) {
             break;
         }
-
-        location += ray_dir*max(MIN_STEP_SIZE, dist);
+        dist_traveled += max(MIN_STEP_SIZE, dist);
+        // location += ray_dir*max(MIN_STEP_SIZE, dist);
     }
     material = Material(0.0f.xxx);
     return vec4(0.0f.xxx, -1.0f);
     // return vec4(location, -1.0f);
 }
 
+#define BIAS 0.01f
+float shadow_ray(vec3 ray_origin, vec3 ray_dir, float max_dist, float sharpness) {
+    float dist_traveled = BIAS;
+    float shadowing = 1.0f;
+    // float prev_dist = 1000000000.0f;
+    for (int i=0; i<MAX_STEPS; i++) {
+        Material tmp;
+        float dist = scene_SDF(ray_origin+ray_dir*dist_traveled, tmp);
+
+        if (dist <= 0.0f) {
+            return 0.0f;
+        }
+        else if (dist >= FAR_PLANE-EPSILON || dist_traveled >= max_dist-EPSILON) {
+            break;
+        }
+
+        shadowing = min(shadowing, sharpness*dist/dist_traveled);
+
+        /*
+        Better smooth shadows but doesn't work well with distance estimators
+
+        float d = dist * dist / 4.0f;
+        d = (prev_dist * prev_dist - d) * d;
+        d = 2*sqrt(d) / prev_dist;
+
+        float n = sqrt(dist * dist - d * d);
+
+        shadowing = min(shadowing, sharpness*dist/max(0.0f, dist_traveled-n));
+        */
+
+        dist_traveled += max(MIN_STEP_SIZE, dist);
+        // prev_dist = dist;
+    }
+    return shadowing;
+}
+
 #define OFFSET 0.0001f
 #define SUN_DIR  normalize(vec3(-0.5f, 1.0f, 0.5f))
 #define SUN_DIR2 normalize(vec3(0.2f, 1.0f, -0.2f))
 #define SHADOWS 1
-#define BIAS 0.01f
 vec4 shade(vec3 point, vec3 ray_dir, Material material) {
     Material tmp;
     vec3 normal = vec3(
@@ -180,9 +220,8 @@ vec4 shade(vec3 point, vec3 ray_dir, Material material) {
     vec3 diffuse = 0.0f.xxx;
 
     #if SHADOWS
-        if (trace(point+SUN_DIR*(0.01f), SUN_DIR, tmp).w <= 0.0f) {
-            diffuse += dot(normal, SUN_DIR);
-        }
+        float shadowing = shadow_ray(point, SUN_DIR, FAR_PLANE, 32);
+        diffuse += dot(normal, SUN_DIR)*shadowing;
         // if (trace(point+SUN_DIR2*(0.01f), SUN_DIR2).w <= 0.0f) {
         //     diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
         // }
@@ -212,12 +251,9 @@ void main() {
     ray = normalize(ray);
 
     Material material;
-    vec4 pos = trace(eye, ray, material);
-    // if (pos.w >= 0.0f) {
+    vec4 pos = camera_ray(eye, ray, material);
     vec4 col = shade(pos.xyz, ray, material);
-    // } else {
-    //     col = vec4(0.0f, 0.0f, 0.0f, 1.0f);
-    // }
+    // vec4 col = vec4(material.color,1.0f);
 
     imageStore(framebuffer, pix, col);
 }
