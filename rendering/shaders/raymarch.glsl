@@ -105,7 +105,7 @@ float mandelbulb_SDF(vec3 point, out Material material) {
             z += point;
         #endif
     }
-    material = Material(trap.xyz);
+    material = Material(pow(trap.xyz, 3.0f.xxx));
     // Bounding sphere
     if (length(point) >= 2.0f) {
         return length(point)-1.5f;
@@ -129,7 +129,7 @@ float scene_SDF(vec3 point, out Material material) {
         d = sphere_SDF(point, spheres[j]);
         if (d <= dist) {
             dist = d;
-            material = Material(0.8f.xxx);
+            material = Material(vec3(1.0f,0.0f,0.0f));
         }
     }
 
@@ -232,7 +232,7 @@ vec4 shade(vec3 point, vec3 ray_dir, Material material) {
 
     // vec3 halfway = normalize(normal + SUN_DIR);
     // float specular = pow(max(dot(normal, halfway), 0.0f), 128.0f);
-    diffuse = max(diffuse, 0.1f.xxx);
+    diffuse = max(diffuse, 0.02f.xxx);
     return vec4(diffuse*material.color, 1.0f);
 }
 
