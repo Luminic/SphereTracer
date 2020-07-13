@@ -119,11 +119,12 @@ float scene_SDF(vec3 point, out Material material) {
     Material tmp;
     float d;
 
-    d = mandelbulb_SDF(point, tmp);
-    if (d <= dist) {
-        dist = d;
-        material = tmp;
-    }
+    // d = mandelbulb_SDF(point, tmp);
+    // if (d <= dist) {
+    //     dist = d;
+    //     material = tmp;
+    //     exact = false;
+    // }
 
     for (int j=0; j<NR_SPHERES; j++) {
         d = sphere_SDF(point, spheres[j]);
@@ -173,7 +174,6 @@ vec4 camera_ray(vec3 ray_origin, vec3 ray_dir, out Material material) {
 float shadow_ray(vec3 ray_origin, vec3 ray_dir, float max_dist, float sharpness) {
     float dist_traveled = BIAS;
     float shadowing = 1.0f;
-    // float prev_dist = 1000000000.0f;
     for (int i=0; i<MAX_STEPS; i++) {
         Material tmp;
         float dist = scene_SDF(ray_origin+ray_dir*dist_traveled, tmp);
@@ -181,36 +181,37 @@ float shadow_ray(vec3 ray_origin, vec3 ray_dir, float max_dist, float sharpness)
         if (dist <= 0.0f) {
             return 0.0f;
         }
-        else if (dist >= FAR_PLANE-EPSILON || dist_traveled >= max_dist-EPSILON) {
+        if (dist >= FAR_PLANE-EPSILON || dist_traveled >= max_dist-EPSILON) {
             break;
         }
 
+
         shadowing = min(shadowing, sharpness*dist/dist_traveled);
 
-        /*
-        Better smooth shadows but doesn't work well with distance estimators
+        // // Better smooth shadows but doesn't work well with distance estimators:
+        // float d = dist * dist / 4.0f;
+        // d = (prev_dist * prev_dist - d) * d;
+        // d = 2*sqrt(d) / prev_dist;
 
-        float d = dist * dist / 4.0f;
-        d = (prev_dist * prev_dist - d) * d;
-        d = 2*sqrt(d) / prev_dist;
+        // float n = sqrt(dist * dist - d * d);
 
-        float n = sqrt(dist * dist - d * d);
+        // shadowing = min(shadowing, sharpness*dist/max(0.0f, dist_traveled-n));
 
-        shadowing = min(shadowing, sharpness*dist/max(0.0f, dist_traveled-n));
-        */
+        // prev_dist = dist;
 
         dist_traveled += max(MIN_STEP_SIZE, dist);
-        // prev_dist = dist;
     }
     return shadowing;
 }
 
+
+
 #define OFFSET 0.0001f
 #define SUN_DIR  normalize(vec3(-0.5f, 1.0f, 0.5f))
-#define SUN_DIR2 normalize(vec3(0.2f, 1.0f, -0.2f))
 #define SHADOWS 1
 vec4 shade(vec3 point, vec3 ray_dir, Material material) {
     Material tmp;
+    bool tmp2;
     vec3 normal = vec3(
         scene_SDF(vec3(point.x+OFFSET, point.y, point.z), tmp) - scene_SDF(vec3(point.x-OFFSET, point.y, point.z), tmp),
         scene_SDF(vec3(point.x, point.y+OFFSET, point.z), tmp) - scene_SDF(vec3(point.x, point.y-OFFSET, point.z), tmp),
@@ -221,19 +222,17 @@ vec4 shade(vec3 point, vec3 ray_dir, Material material) {
 
     #if SHADOWS
         float shadowing = shadow_ray(point, SUN_DIR, FAR_PLANE, 32);
-        diffuse += dot(normal, SUN_DIR)*shadowing;
-        // if (trace(point+SUN_DIR2*(0.01f), SUN_DIR2).w <= 0.0f) {
-        //     diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
-        // }
+        diffuse += max(dot(normal, SUN_DIR), 0.0f)*shadowing;
     #else
         diffuse += dot(normal, SUN_DIR);
-        // diffuse += dot(normal, SUN_DIR2) * vec3(0.5f,1.0f,1.0f);
     #endif
 
     // vec3 halfway = normalize(normal + SUN_DIR);
-    // float specular = pow(max(dot(normal, halfway), 0.0f), 128.0f);
+    // float specular = pow(max(dot(normal, halfway), 0.0f), 16.0f);
+
     diffuse = max(diffuse, 0.02f.xxx);
     return vec4(diffuse*material.color, 1.0f);
+    // return vec4(shadowing.xxx, 1.0f);
 }
 
 layout (local_size_x = 8, local_size_y = 8) in;
