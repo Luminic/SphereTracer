@@ -10,6 +10,8 @@ uniform vec3 ray11;
 
 uniform int time;
 
+#define PI 3.1415926536f
+
 #define EPSILON 0.000001f
 #define NEAR_PLANE 0.1f
 #define FAR_PLANE 100.0f
@@ -17,8 +19,14 @@ uniform int time;
 #define MAX_STEPS 500
 
 struct Material {
-    vec3 color;
+    vec3 albedo;
+    vec3 F0;
+    float roughness;
+    float metalness;
+    float AO;
 };
+#define DEFAULT_MATERIAL Material(vec3(1.0f), vec3(0.05f), 0.5f, 0.0f, 0.5f)
+#define MATERIAL(x) Material(x, vec3(0.05f), 0.3f, 0.0f, 0.5f)
 
 
 #define NR_SPHERES 3
@@ -105,7 +113,7 @@ float mandelbulb_SDF(vec3 point, out Material material) {
             z += point;
         #endif
     }
-    material = Material(pow(trap.xyz, 3.0f.xxx));
+    material = MATERIAL(pow(trap.xyz, 3.0f.xxx));
     // Bounding sphere
     if (length(point) >= 2.0f) {
         return length(point)-1.5f;
@@ -119,18 +127,17 @@ float scene_SDF(vec3 point, out Material material) {
     Material tmp;
     float d;
 
-    // d = mandelbulb_SDF(point, tmp);
-    // if (d <= dist) {
-    //     dist = d;
-    //     material = tmp;
-    //     exact = false;
-    // }
+    d = mandelbulb_SDF(point, tmp);
+    if (d <= dist) {
+        dist = d;
+        material = tmp;
+    }
 
     for (int j=0; j<NR_SPHERES; j++) {
         d = sphere_SDF(point, spheres[j]);
         if (d <= dist) {
             dist = d;
-            material = Material(vec3(1.0f,0.0f,0.0f));
+            material = MATERIAL(vec3(1.0f,0.0f,0.0f));
         }
     }
 
@@ -138,14 +145,14 @@ float scene_SDF(vec3 point, out Material material) {
     if (d <= dist) {
         dist = d;
         // material = Material(0.5f.xxx);
-        material = Material(1.0f.xxx);
+        material = MATERIAL(1.0f.xxx);
     }
 
     // Floor plane
     d = max(point.y+1.5f, -1.6f-point.y);
     if (d <= dist) {
         dist = d;
-        material = Material(1.0f.xxx);
+        material = MATERIAL(1.0f.xxx);
     }
     return dist;
 }
@@ -165,7 +172,7 @@ vec4 camera_ray(vec3 ray_origin, vec3 ray_dir, out Material material) {
         dist_traveled += max(MIN_STEP_SIZE, dist);
         // location += ray_dir*max(MIN_STEP_SIZE, dist);
     }
-    material = Material(0.0f.xxx);
+    material = MATERIAL(0.0f.xxx);
     return vec4(0.0f.xxx, -1.0f);
     // return vec4(location, -1.0f);
 }
@@ -205,10 +212,55 @@ float shadow_ray(vec3 ray_origin, vec3 ray_dir, float max_dist, float sharpness)
 }
 
 
+float NDF_trowbridge_reitz_GGX(vec3 halfway, vec3 normal, float alpha) {
+    float a2 = alpha * alpha;
+    return a2 / ( PI * pow( pow(max(dot(normal, halfway), 0.0f), 2) * (a2 - 1) + 1, 2) );
+}
+
+float GF_schlick_GGX(float n_dot_v, float alpha) {
+    // Schlick approximation
+    float k = alpha / 2.0f;
+    // LearnOGL: k = (roughness + 1)^2 / 8
+
+    return n_dot_v / ( n_dot_v * (1-k) + k );
+}
+
+float GF_smith(vec3 view, vec3 normal, vec3 light, float alpha) {
+    float n_dot_v = max(dot(normal, view), 0.0f);
+    float n_dot_l = max(dot(normal, light), 0.0f);
+    
+    return GF_schlick_GGX(n_dot_v, alpha) * GF_schlick_GGX(n_dot_l, alpha);
+}
+
+vec3 F_schlick(vec3 view, vec3 halfway, vec3 F0) {
+    // F0 is the reflectivity at normal incidence
+    return F0 + (1.0f - F0) * pow((1.0f - dot(view, halfway)), 5);
+}
+
+vec3 cook_torrance_BRDF(vec3 view, vec3 normal, vec3 light, Material material) {
+    vec3 lambertian_diffuse = material.albedo / PI;
+
+    float alpha = material.roughness * material.roughness;
+    vec3 halfway = normalize(view + light);
+    vec3 F0 = material.F0;
+    F0 = mix(F0, material.albedo, material.metalness);
+
+    float NDF = NDF_trowbridge_reitz_GGX(halfway, normal, alpha);
+    float GF = GF_smith(view, normal, light, alpha);
+    vec3 F = F_schlick(view, halfway, F0);
+
+    vec3 kD = (1.0f.xxx - F) * (1.0f - material.metalness);
+
+    vec3 numer = NDF * GF * F;
+    float denom = 4.0f * max(dot(normal, view), 0.0f) * max(dot(normal, light), 0.0f);
+
+    return kD*lambertian_diffuse + numer/max(denom, 0.001f);
+}
 
 #define OFFSET 0.0001f
 #define SUN_DIR  normalize(vec3(-0.5f, 1.0f, 0.5f))
 #define SHADOWS 1
+#define AMBIENT_MULTIPLIER 0.03
 vec4 shade(vec3 point, vec3 ray_dir, Material material) {
     Material tmp;
     bool tmp2;
@@ -220,19 +272,30 @@ vec4 shade(vec3 point, vec3 ray_dir, Material material) {
     normal = normalize(normal);
     vec3 diffuse = 0.0f.xxx;
 
-    #if SHADOWS
-        float shadowing = shadow_ray(point, SUN_DIR, FAR_PLANE, 32);
-        diffuse += max(dot(normal, SUN_DIR), 0.0f)*shadowing;
-    #else
-        diffuse += dot(normal, SUN_DIR);
-    #endif
+    // #if SHADOWS
+    //     float shadowing = shadow_ray(point, SUN_DIR, FAR_PLANE, 32);
+    //     diffuse += max(dot(normal, SUN_DIR), 0.0f)*shadowing;
+    // #else
+    //     diffuse += dot(normal, SUN_DIR);
+    // #endif
 
     // vec3 halfway = normalize(normal + SUN_DIR);
     // float specular = pow(max(dot(normal, halfway), 0.0f), 16.0f);
 
-    diffuse = max(diffuse, 0.02f.xxx);
-    return vec4(diffuse*material.color, 1.0f);
+    // diffuse = max(diffuse, 0.02f.xxx);
+    // return vec4(diffuse*material.albedo, 1.0f);
     // return vec4(shadowing.xxx, 1.0f);
+
+    vec3 radiance = vec3(1.0f);
+    #if SHADOWS
+        radiance *= shadow_ray(point, SUN_DIR, FAR_PLANE, 32);
+    #endif
+
+    vec3 color = cook_torrance_BRDF(-ray_dir, normal, SUN_DIR, material);
+    color *= radiance * max(dot(normal, SUN_DIR), 0.0f);
+    
+    color += material.albedo * material.AO * AMBIENT_MULTIPLIER;
+    return vec4(color, 1.0f);
 }
 
 layout (local_size_x = 8, local_size_y = 8) in;
@@ -251,8 +314,13 @@ void main() {
 
     Material material;
     vec4 pos = camera_ray(eye, ray, material);
-    vec4 col = shade(pos.xyz, ray, material);
-    // vec4 col = vec4(material.color,1.0f);
+
+    vec4 col;
+    if (pos.w >= 0) {
+        col = shade(pos.xyz, ray, material);
+    } else {
+        col = vec4(0.0f.xxx, 1.0f);
+    }
 
     imageStore(framebuffer, pix, col);
 }
