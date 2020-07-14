@@ -119,6 +119,7 @@ float mandelbulb_SDF(vec3 point, out Material material) {
         return length(point)-1.5f;
     }
     return 0.25*log(dot(z,z))*length(z)/dr;
+    // View cross sections of the colors embedded in a sphere:
     // return max(min(0.25*log(dot(z,z))*length(z)/dr, length(point)-1.5f), point.y+1.5f*(abs((time%10000)/2500.0f-2.0f)-1.0f));
 }
 
@@ -144,7 +145,6 @@ float scene_SDF(vec3 point, out Material material) {
     d = cylinder_SDF(point, Cylinder(vec3(-3.0f, 0.0f, 0.0f), 0.5f, 1.5));
     if (d <= dist) {
         dist = d;
-        // material = Material(0.5f.xxx);
         material = MATERIAL(1.0f.xxx);
     }
 
@@ -164,17 +164,14 @@ vec4 camera_ray(vec3 ray_origin, vec3 ray_dir, out Material material) {
 
         if (dist <= 0.0f) {
             return vec4(ray_origin+ray_dir*dist_traveled, 1.0f);
-            // return vec4(location, 1.0f);
         }
         else if (dist >= FAR_PLANE-EPSILON || dist_traveled >= FAR_PLANE-EPSILON) {
             break;
         }
         dist_traveled += max(MIN_STEP_SIZE, dist);
-        // location += ray_dir*max(MIN_STEP_SIZE, dist);
     }
     material = MATERIAL(0.0f.xxx);
     return vec4(0.0f.xxx, -1.0f);
-    // return vec4(location, -1.0f);
 }
 
 #define BIAS 0.01f
@@ -212,15 +209,16 @@ float shadow_ray(vec3 ray_origin, vec3 ray_dir, float max_dist, float sharpness)
 }
 
 
-float NDF_trowbridge_reitz_GGX(vec3 halfway, vec3 normal, float alpha) {
+float NDF_trowbridge_reitz_GGX(vec3 view, vec3 normal, vec3 light, float alpha) {
+    vec3 halfway = normalize(view + light);
     float a2 = alpha * alpha;
+
     return a2 / ( PI * pow( pow(max(dot(normal, halfway), 0.0f), 2) * (a2 - 1) + 1, 2) );
 }
 
 float GF_schlick_GGX(float n_dot_v, float alpha) {
     // Schlick approximation
     float k = alpha / 2.0f;
-    // LearnOGL: k = (roughness + 1)^2 / 8
 
     return n_dot_v / ( n_dot_v * (1-k) + k );
 }
@@ -232,22 +230,21 @@ float GF_smith(vec3 view, vec3 normal, vec3 light, float alpha) {
     return GF_schlick_GGX(n_dot_v, alpha) * GF_schlick_GGX(n_dot_l, alpha);
 }
 
-vec3 F_schlick(vec3 view, vec3 halfway, vec3 F0) {
+vec3 F_schlick(vec3 view, vec3 normal, vec3 F0) {
     // F0 is the reflectivity at normal incidence
-    return F0 + (1.0f - F0) * pow((1.0f - dot(view, halfway)), 5);
+    return F0 + (1.0f - F0) * pow((1.0f - dot(view, normal)), 5);
 }
 
 vec3 cook_torrance_BRDF(vec3 view, vec3 normal, vec3 light, Material material) {
     vec3 lambertian_diffuse = material.albedo / PI;
 
     float alpha = material.roughness * material.roughness;
-    vec3 halfway = normalize(view + light);
     vec3 F0 = material.F0;
     F0 = mix(F0, material.albedo, material.metalness);
 
-    float NDF = NDF_trowbridge_reitz_GGX(halfway, normal, alpha);
+    float NDF = NDF_trowbridge_reitz_GGX(view, normal, light, alpha);
     float GF = GF_smith(view, normal, light, alpha);
-    vec3 F = F_schlick(view, halfway, F0);
+    vec3 F = F_schlick(view, normal, F0);
 
     vec3 kD = (1.0f.xxx - F) * (1.0f - material.metalness);
 
@@ -271,20 +268,6 @@ vec4 shade(vec3 point, vec3 ray_dir, Material material) {
     );
     normal = normalize(normal);
     vec3 diffuse = 0.0f.xxx;
-
-    // #if SHADOWS
-    //     float shadowing = shadow_ray(point, SUN_DIR, FAR_PLANE, 32);
-    //     diffuse += max(dot(normal, SUN_DIR), 0.0f)*shadowing;
-    // #else
-    //     diffuse += dot(normal, SUN_DIR);
-    // #endif
-
-    // vec3 halfway = normalize(normal + SUN_DIR);
-    // float specular = pow(max(dot(normal, halfway), 0.0f), 16.0f);
-
-    // diffuse = max(diffuse, 0.02f.xxx);
-    // return vec4(diffuse*material.albedo, 1.0f);
-    // return vec4(shadowing.xxx, 1.0f);
 
     vec3 radiance = vec3(1.0f);
     #if SHADOWS
