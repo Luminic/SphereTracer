@@ -1,6 +1,7 @@
 #version 450 core
 
 layout (binding = 0, rgba32f) uniform image2D framebuffer;
+layout (binding = 1) uniform samplerCube skybox;
 
 uniform vec3 eye;
 uniform vec3 ray00;
@@ -149,11 +150,11 @@ float scene_SDF(vec3 point, out Material material) {
     }
 
     // Floor plane
-    d = max(point.y+1.5f, -1.6f-point.y);
-    if (d <= dist) {
-        dist = d;
-        material = MATERIAL(1.0f.xxx);
-    }
+    // d = max(point.y+1.5f, -1.6f-point.y);
+    // if (d <= dist) {
+    //     dist = d;
+    //     material = MATERIAL(1.0f.xxx);
+    // }
     return dist;
 }
 
@@ -269,7 +270,7 @@ vec4 shade(vec3 point, vec3 ray_dir, Material material) {
     normal = normalize(normal);
     vec3 diffuse = 0.0f.xxx;
 
-    vec3 radiance = vec3(1.0f);
+    vec3 radiance = vec3(2.0f);
     #if SHADOWS
         radiance *= shadow_ray(point, SUN_DIR, FAR_PLANE, 32);
     #endif
@@ -302,7 +303,7 @@ void main() {
     if (pos.w >= 0) {
         col = shade(pos.xyz, ray, material);
     } else {
-        col = vec4(0.0f.xxx, 1.0f);
+        col = texture(skybox, ray);
     }
 
     imageStore(framebuffer, pix, col);

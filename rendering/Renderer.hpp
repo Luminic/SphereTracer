@@ -24,6 +24,8 @@ public:
 private:
     Camera camera;
 
+    Texture environment_map;
+
     Shader render_shader;
     int work_group_size[3];
     Texture render_result;

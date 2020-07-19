@@ -96,7 +96,6 @@ void OpenGLWidget::paintGL() {
     glUseProgram(frame_shader.get_id());
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, render_result->get_id());
-    frame_shader.set_int("render", 0);
     glBindVertexArray(frame_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -107,6 +106,10 @@ void OpenGLWidget::paintGL() {
 
 void OpenGLWidget::main_loop(int time) {
     render_result = renderer.render(time);
+
+    // For some reason not having GL_TEXTURE0 bound before calling update()
+    // causes textures to be completely black. Maybe a Qt bug?
+    glActiveTexture(GL_TEXTURE0); 
     update();
 }
 

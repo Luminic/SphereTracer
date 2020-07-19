@@ -28,6 +28,10 @@ Texture* Renderer::initialize(unsigned int width, unsigned int height) {
 
     camera.position = glm::vec3(0.0f,0.0f,5.0f);
 
+    // Setup the environment map
+    environment_map.load_cube_map("textures/Malibu_Overlook/Malibu_Overlook_3k.hdr", 512);
+    // environment_map.load_cube_map("textures/Winter_Forest/WinterForest_Ref.hdr", 1024);
+
     // Setup the render shader
     ShaderStage comp_shader{GL_COMPUTE_SHADER, "rendering/shaders/raymarch.glsl"};
 
@@ -61,11 +65,17 @@ Texture* Renderer::render(int time) {
 
     render_shader.set_int("time", time);
 
+    glActiveTexture(GL_TEXTURE0);
     glBindImageTexture(0, render_result.get_id(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, environment_map.get_id());
 
     unsigned int worksize_x = round_up_to_pow_2(width);
     unsigned int worksize_y = round_up_to_pow_2(height);
     glDispatchCompute(worksize_x/work_group_size[0], worksize_y/work_group_size[1], 1);
+
+    glActiveTexture(GL_TEXTURE0);
 
     // Clean up & make sure the shader has finished writing to the image
     glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);

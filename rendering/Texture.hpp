@@ -16,13 +16,16 @@ public:
     void load(QImage img);
     void create(unsigned int width, unsigned int height);
 
+    // Load eq rect map and convert to cubemap
+    void load_cube_map(const char* equirectangular_path, unsigned int size);
+
     // Warning: This WILL clear the image
     void resize(unsigned int width, unsigned int height);
 
     unsigned int get_id();
 
 private:
-    void set_params(); // TODO: add sampler options and make public
+    void set_params(unsigned int tex_id=0); // TODO: add sampler options and make public
 
     unsigned int id;
 };
