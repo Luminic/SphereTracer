@@ -13,6 +13,7 @@ OpenGLWidget::OpenGLWidget(QWidget* parent) : QOpenGLWidget(parent) {
 }
 
 OpenGLWidget::~OpenGLWidget() {
+    makeCurrent();
     glDeleteVertexArrays(1, &frame_vao);
     glDeleteBuffers(1, &frame_vbo);
 }
@@ -105,11 +106,9 @@ void OpenGLWidget::paintGL() {
 }
 
 void OpenGLWidget::main_loop(int time) {
+    makeCurrent();
     render_result = renderer.render(time);
-
-    // For some reason not having GL_TEXTURE0 bound before calling update()
-    // causes textures to be completely black. Maybe a Qt bug?
-    glActiveTexture(GL_TEXTURE0); 
+    
     update();
 }
 
