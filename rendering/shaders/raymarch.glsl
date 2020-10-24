@@ -17,7 +17,7 @@ uniform int time;
 #define NEAR_PLANE 0.1f
 #define FAR_PLANE 100.0f
 #define MIN_STEP_SIZE 0.0001f
-#define MAX_STEPS 500
+#define MAX_STEPS 1000
 
 struct Material {
     vec3 albedo;
@@ -26,8 +26,8 @@ struct Material {
     float metalness;
     float AO;
 };
-#define DEFAULT_MATERIAL Material(vec3(1.0f), vec3(0.05f), 0.5f, 0.0f, 0.5f)
-#define MATERIAL(x) Material(x, vec3(0.05f), 0.3f, 0.0f, 0.5f)
+#define DEFAULT_MATERIAL Material(vec3(1.0f), vec3(0.04f), 0.5f, 0.0f, 0.5f)
+#define MATERIAL(x) Material(x, vec3(0.04f), 0.5f, 0.0f, 0.1f)
 
 
 #define NR_SPHERES 3
@@ -143,6 +143,33 @@ float scene_SDF(vec3 point, out Material material) {
         }
     }
 
+    // Sphere sph = {vec3(0.0f, -0.5f, 0.0f), 1.0f};
+    // for (int i=0; i<5; i++) {
+    //     // int i=4;
+    //     for (int j=0; j<5; j++) {
+    //         // int j=4;
+    //         d = sphere_SDF(point, sph);
+    //         if (d <= dist) {
+    //             dist = d;
+    //             material = MATERIAL(vec3(1.0f,0.0f,0.0f));
+    //             material.roughness = i/4.0f;
+    //             material.metalness = 1-j/4.0f;
+    //         }
+    //         sph.position.y += 2.5f;
+    //     }
+    //     sph.position.y = -0.5f;
+    //     sph.position.x += 2.5f;
+    // }
+    // d = sphere_SDF(point, sph);
+    // if (d <= dist) {
+    //     dist = d;
+    //     material = MATERIAL(vec3(1.0f,0.0f,0.0f));
+    //     material.F0 = 1.0f.xxx;
+    //     material.metalness = 1.0f;
+    //     material.roughness = 0.4f;
+    // }
+
+
     d = cylinder_SDF(point, Cylinder(vec3(-3.0f, 0.0f, 0.0f), 0.5f, 1.5));
     if (d <= dist) {
         dist = d;
@@ -150,11 +177,11 @@ float scene_SDF(vec3 point, out Material material) {
     }
 
     // Floor plane
-    // d = max(point.y+1.5f, -1.6f-point.y);
-    // if (d <= dist) {
-    //     dist = d;
-    //     material = MATERIAL(1.0f.xxx);
-    // }
+    d = max(point.y+1.5f, -1.6f-point.y);
+    if (d <= dist) {
+        dist = d;
+        material = MATERIAL(1.0f.xxx);
+    }
     return dist;
 }
 
@@ -163,7 +190,7 @@ vec4 camera_ray(vec3 ray_origin, vec3 ray_dir, out Material material) {
     for (int i=0; i<MAX_STEPS; i++) {
         float dist = scene_SDF(ray_origin+ray_dir*dist_traveled, material);
 
-        if (dist <= 0.0f) {
+        if (dist <= 0.0f+EPSILON) {
             return vec4(ray_origin+ray_dir*dist_traveled, 1.0f);
         }
         else if (dist >= FAR_PLANE-EPSILON || dist_traveled >= FAR_PLANE-EPSILON) {
@@ -231,9 +258,9 @@ float GF_smith(vec3 view, vec3 normal, vec3 light, float alpha) {
     return GF_schlick_GGX(n_dot_v, alpha) * GF_schlick_GGX(n_dot_l, alpha);
 }
 
-vec3 F_schlick(vec3 view, vec3 normal, vec3 F0) {
+vec3 F_schlick(vec3 view, vec3 halfway, vec3 F0) {
     // F0 is the reflectivity at normal incidence
-    return F0 + (1.0f - F0) * pow((1.0f - dot(view, normal)), 5);
+    return F0 + (1.0f - F0) * pow((1.0f - max(dot(view, halfway),0.0f)), 5);
 }
 
 vec3 cook_torrance_BRDF(vec3 view, vec3 normal, vec3 light, Material material) {
@@ -242,12 +269,16 @@ vec3 cook_torrance_BRDF(vec3 view, vec3 normal, vec3 light, Material material) {
     float alpha = material.roughness * material.roughness;
     vec3 F0 = material.F0;
     F0 = mix(F0, material.albedo, material.metalness);
+    vec3 halfway = normalize(view + light);
 
     float NDF = NDF_trowbridge_reitz_GGX(view, normal, light, alpha);
     float GF = GF_smith(view, normal, light, alpha);
-    vec3 F = F_schlick(view, normal, F0);
+    vec3 F = F_schlick(view, halfway, F0);
+    // vec3 F = F_schlick(view, normal, 0.04f.xxx);
 
-    vec3 kD = (1.0f.xxx - F) * (1.0f - material.metalness);
+    vec3 kD = (1.0f.xxx - F_schlick(normal, light, F0)) * (1.0f.xxx - F_schlick(normal, view, F0));
+    kD *= (1.0f - material.metalness);
+    kD = max(kD, 0.0f);
 
     vec3 numer = NDF * GF * F;
     float denom = 4.0f * max(dot(normal, view), 0.0f) * max(dot(normal, light), 0.0f);
@@ -303,7 +334,7 @@ void main() {
     if (pos.w >= 0) {
         col = shade(pos.xyz, ray, material);
     } else {
-        col = texture(skybox, ray);
+        col = 0.0f.xxxx;//texture(skybox, ray);
     }
 
     imageStore(framebuffer, pix, col);

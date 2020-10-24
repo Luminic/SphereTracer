@@ -26,7 +26,8 @@ Texture* Renderer::initialize(unsigned int width, unsigned int height) {
     this->width = width;
     this->height = height;
 
-    camera.position = glm::vec3(0.0f,0.0f,5.0f);
+    // camera.position = glm::vec3(0.0f,-0.5f,3.0f);
+    camera.position = glm::vec3(5.0f,4.5f,15.0f);
 
     // Setup the environment map
     environment_map.load_cube_map("textures/Malibu_Overlook/Malibu_Overlook_3k.hdr", 512);

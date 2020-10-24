@@ -5,7 +5,8 @@
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("Sphere Marcher");
-    resize(800, 600);
+    // resize(800, 600);
+    resize(400, 300);
 
     setCentralWidget(&viewport);
 
